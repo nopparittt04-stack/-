@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D การแตกแรงในการเคลื่อนที่เป็นวงกลม</title>
+<style>
+  :root{--bg:#0a0f17;--panel:#111a26;--panel2:#0d1520;--text:#eef5ff;--muted:#93a4ba;--line:#253247;--accent:#58b7ff;--good:#70e0a1;--warn:#ffcb66;--pink:#ff7bb6;}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 70% 10%,#172338 0,#0a0f17 45%);color:var(--text)}
+  .wrap{max-width:1500px;margin:auto;padding:18px}.top{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:14px}.title h1{font-size:clamp(23px,3vw,38px);margin:0 0 6px}.title p{margin:0;color:var(--muted)}
+  .pill{border:1px solid var(--line);background:#0d1520;padding:8px 12px;border-radius:999px;color:#bcd0e8;font-size:13px}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:14px}.stage{min-height:690px;background:linear-gradient(180deg,#0d1520,#091019);border:1px solid var(--line);border-radius:18px;overflow:hidden;position:relative}.canvas{position:absolute;inset:0}.legend{position:absolute;left:15px;top:15px;background:rgba(5,9,15,.72);backdrop-filter:blur(8px);border:1px solid #243247;border-radius:14px;padding:10px 12px;font-size:13px;line-height:1.55}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px}.side{display:flex;flex-direction:column;gap:12px}.card{background:rgba(17,26,38,.96);border:1px solid var(--line);border-radius:16px;padding:15px}.card h2{font-size:16px;margin:0 0 12px}.row{display:grid;grid-template-columns:1fr 90px;gap:10px;align-items:center;margin:9px 0}.row label{font-size:14px;color:#d8e4f2}.num{font-variant-numeric:tabular-nums;color:#fff;text-align:right}.slider{width:100%;accent-color:var(--accent)} input[type=number]{width:100%;background:#0a111b;color:#fff;border:1px solid #2a3a52;border-radius:8px;padding:7px}select{width:100%;background:#0a111b;color:#fff;border:1px solid #2a3a52;border-radius:8px;padding:8px}.buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}button{border:1px solid #2a3a52;background:#152238;color:#fff;padding:9px 10px;border-radius:9px;cursor:pointer}button:hover{background:#1a2c46}
+  .formula{background:#0a111a;border:1px solid #203047;padding:10px;border-radius:10px;margin-top:8px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.6;color:#dbeaff}.formula b{color:#fff}.metric{display:grid;grid-template-columns:1fr 1fr;gap:8px}.metric .box{background:#0a111a;border:1px solid #203047;border-radius:10px;padding:9px}.k{font-size:11px;color:var(--muted)}.v{font-size:17px;margin-top:3px;font-variant-numeric:tabular-nums}.unit{font-size:12px;color:var(--muted)}
+  .source{color:#aebdd0;font-size:12px;line-height:1.55}.source strong{color:#eaf3ff}.footer{color:#71849c;font-size:11px;margin-top:6px}.toggle{display:flex;align-items:center;gap:8px;color:#c9d7e8;font-size:13px}.toggle input{accent-color:var(--accent)}
+  @media(max-width:1050px){.grid{grid-template-columns:1fr}.stage{min-height:600px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="title"><h1>3D การแตกเวกเตอร์ในการเคลื่อนที่เป็นวงกลม</h1><p>แสดงรัศมี <b>r</b>, ความเร็วเชิงมุม <b>ω</b>, ความเร่งเชิงสัมผัส <b>aₜ</b> และความเร่งสู่ศูนย์กลาง <b>a꜀</b></p></div>
+    <div class="pill">อ้างอิงสมการจากเอกสารที่แนบ • เพิ่ม F = ma เพื่อดูเป็น “แรง”</div>
+  </div>
+
+  <div class="grid">
+    <section class="stage"><div id="canvas" class="canvas"></div>
+      <div class="legend">
+        <div><span class="dot" style="background:#58b7ff"></span>เวกเตอร์รัศมี r</div>
+        <div><span class="dot" style="background:#70e0a1"></span>ความเร็ว v / แนวสัมผัส</div>
+        <div><span class="dot" style="background:#ffcb66"></span>aₜ / Fₜ แนวสัมผัส</div>
+        <div><span class="dot" style="background:#ff7bb6"></span>a꜀ / F꜀ เข้าหาศูนย์กลาง</div>
+        <div><span class="dot" style="background:#d8a8ff"></span>a / F ผลรวมเวกเตอร์</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>ตัวควบคุม</h2>
+        <div class="row"><label>รัศมี r</label><div class="num"><span id="rVal">2.00</span> m</div></div>
+        <input id="r" class="slider" type="range" min="0.5" max="5" step="0.05" value="2" />
+
+        <div class="row"><label>ω</label><div class="num"><span id="omegaVal">2.00</span> rad/s</div></div>
+        <input id="omega" class="slider" type="range" min="0" max="6" step="0.05" value="2" />
+
+        <div class="row"><label>α</label><div class="num"><span id="alphaVal">0.80</span> rad/s²</div></div>
+        <input id="alpha" class="slider" type="range" min="-3" max="3" step="0.05" value="0.8" />
+
+        <div class="row"><label>มวล m</label><div class="num"><span id="massVal">1.50</span> kg</div></div>
+        <input id="mass" class="slider" type="range" min="0.1" max="10" step="0.1" value="1.5" />
+
+        <div class="row"><label>มุม θ</label><div class="num"><span id="thetaVal">35</span>°</div></div>
+        <input id="theta" class="slider" type="range" min="0" max="359" step="1" value="35" />
+
+        <div class="buttons"><button id="play">▶ เล่นการเคลื่อนที่</button><button id="reset">↺ รีเซ็ต</button></div>
+        <div style="margin-top:10px" class="toggle"><input id="showForce" type="checkbox" checked/><label for="showForce">แสดงเวกเตอร์ “แรง” ด้วย F = ma</label></div>
+      </div>
+
+      <div class="card">
+        <h2>ค่าที่คำนวณได้</h2>
+        <div class="metric">
+          <div class="box"><div class="k">ความเร็วเชิงเส้น v = rω</div><div class="v" id="vOut">4.00 <span class="unit">m/s</span></div></div>
+          <div class="box"><div class="k">aₜ = rα</div><div class="v" id="atOut">1.60 <span class="unit">m/s²</span></div></div>
+          <div class="box"><div class="k">a꜀ = v²/r = rω²</div><div class="v" id="acOut">8.00 <span class="unit">m/s²</span></div></div>
+          <div class="box"><div class="k">|a| = √(aₜ²+a꜀²)</div><div class="v" id="aOut">8.16 <span class="unit">m/s²</span></div></div>
+          <div class="box"><div class="k">Fₜ = maₜ</div><div class="v" id="ftOut">2.40 <span class="unit">N</span></div></div>
+          <div class="box"><div class="k">F꜀ = ma꜀</div><div class="v" id="fcOut">12.00 <span class="unit">N</span></div></div>
+        </div>
+        <div class="formula"><b>การแตกเวกเตอร์</b><br>a⃗ = a⃗ₜ + a⃗꜀<br>aₜ ⟂ a꜀<br>และเมื่อใช้ F = ma → F⃗ = F⃗ₜ + F⃗꜀</div>
+      </div>
+
+      <div class="card">
+        <h2>หน่วยและสมการจากไฟล์</h2>
+        <div class="source">
+          <strong>θ = s/r</strong> → θ เป็นเรเดียน (rad)<br>
+          <strong>1 rev = 360° = 2π rad</strong><br>
+          <strong>ω = dθ/dt</strong> → rad/s<br>
+          <strong>α = dω/dt</strong> → rad/s²<br>
+          <strong>v = rω</strong> → m/s<br>
+          <strong>a = aₜ + a꜀</strong><br>
+          <strong>a꜀ = v²/r = rω²</strong> และทิศเข้าสู่ศูนย์กลาง<br>
+          <strong>aₜ = rα</strong> และทิศตามแนวสัมผัส
+        </div>
+        <div class="footer">หมายเหตุ: เอกสารเน้น “ความเร่ง” เป็นหลัก ส่วนการแสดงแรงด้านบนเป็นการต่อยอดด้วยกฎข้อที่ 2 ของนิวตัน F = ma</div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+// Self-contained 3D renderer: no external libraries required.
+const host=document.getElementById('canvas');
+const cvs=document.createElement('canvas'); host.appendChild(cvs); const ctx=cvs.getContext('2d');
+const vals={r:2,omega:2,alpha:.8,mass:1.5,theta:35,play:false};
+const el=id=>document.getElementById(id); const inputs=['r','omega','alpha','mass','theta'];
+inputs.forEach(k=>el(k).addEventListener('input',()=>{vals[k]=+el(k).value;update();}));
+el('play').onclick=()=>{vals.play=!vals.play;el('play').textContent=vals.play?'⏸ หยุด':'▶ เล่นการเคลื่อนที่';};
+el('reset').onclick=()=>{Object.assign(vals,{r:2,omega:2,alpha:.8,mass:1.5,theta:35,play:false});inputs.forEach(k=>el(k).value=vals[k]);el('play').textContent='▶ เล่นการเคลื่อนที่';update();};
+el('showForce').onchange=update;
+let yaw=-0.65,pitch=0.48,zoom=1,drag=false,lx=0,ly=0;
+cvs.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX;ly=e.clientY;cvs.setPointerCapture(e.pointerId)});
+cvs.addEventListener('pointermove',e=>{if(!drag)return; yaw+=(e.clientX-lx)*.008; pitch+=(e.clientY-ly)*.008; pitch=Math.max(-1.35,Math.min(1.35,pitch)); lx=e.clientX;ly=e.clientY;});
+cvs.addEventListener('pointerup',()=>drag=false);
+cvs.addEventListener('wheel',e=>{e.preventDefault();zoom*=Math.exp(-e.deltaY*.001);zoom=Math.max(.55,Math.min(2.2,zoom));},{passive:false});
+function resize(){const d=Math.min(devicePixelRatio||1,2),w=host.clientWidth,h=host.clientHeight;cvs.width=w*d;cvs.height=h*d;cvs.style.width=w+'px';cvs.style.height=h+'px';ctx.setTransform(d,0,0,d,0,0);}
+window.addEventListener('resize',resize); resize();
+function project(p){
+  const cy=Math.cos(yaw),sy=Math.sin(yaw),cp=Math.cos(pitch),sp=Math.sin(pitch);
+  let x=p.x*cy-p.z*sy, z=p.x*sy+p.z*cy, y=p.y*cp-z*sp; z=p.y*sp+z*cp;
+  const scale=Math.min(host.clientWidth,host.clientHeight)*.115*zoom/(1+z*.035); return {x:host.clientWidth/2+x*scale,y:host.clientHeight/2-y*scale,z};
+}
+function line3(a,b,color,width=1,dash=[]){const A=project(a),B=project(b);ctx.save();ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();ctx.moveTo(A.x,A.y);ctx.lineTo(B.x,B.y);ctx.stroke();ctx.restore();}
+function arrow3(o,d,color,label){const L=Math.hypot(d.x,d.y,d.z);if(L<.001)return;const e={x:o.x+d.x,y:o.y+d.y,z:o.z+d.z},O=project(o),E=project(e);ctx.save();ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(O.x,O.y);ctx.lineTo(E.x,E.y);ctx.stroke();const ang=Math.atan2(E.y-O.y,E.x-O.x),hl=10+Math.min(8,L*2);ctx.beginPath();ctx.moveTo(E.x,E.y);ctx.lineTo(E.x-hl*Math.cos(ang-.45),E.y-hl*Math.sin(ang-.45));ctx.lineTo(E.x-hl*Math.cos(ang+.45),E.y-hl*Math.sin(ang+.45));ctx.closePath();ctx.fill();if(label){ctx.font='bold 15px system-ui';ctx.fillText(label,E.x+8,E.y-7);}ctx.restore();}
+function dot3(p,color,r=7){const P=project(p);ctx.fillStyle=color;ctx.beginPath();ctx.arc(P.x,P.y,r,0,Math.PI*2);ctx.fill();}
+function update(){
+ const r=vals.r,w=vals.omega,a=vals.alpha,m=vals.mass,th=vals.theta*Math.PI/180;
+ const v=r*w,at=r*a,ac=r*w*w,amag=Math.hypot(at,ac),ft=m*at,fc=m*ac;
+ el('rVal').textContent=r.toFixed(2);el('omegaVal').textContent=w.toFixed(2);el('alphaVal').textContent=a.toFixed(2);el('massVal').textContent=m.toFixed(2);el('thetaVal').textContent=Math.round(vals.theta);
+ el('vOut').innerHTML=v.toFixed(2)+' <span class="unit">m/s</span>';el('atOut').innerHTML=at.toFixed(2)+' <span class="unit">m/s²</span>';el('acOut').innerHTML=ac.toFixed(2)+' <span class="unit">m/s²</span>';el('aOut').innerHTML=amag.toFixed(2)+' <span class="unit">m/s²</span>';el('ftOut').innerHTML=Math.abs(ft).toFixed(2)+' <span class="unit">N</span>';el('fcOut').innerHTML=fc.toFixed(2)+' <span class="unit">N</span>';
+ draw(r,w,a,th,m,ft,fc);
+}
+function draw(r,w,a,th,m,ft,fc){
+ const W=host.clientWidth,H=host.clientHeight;ctx.clearRect(0,0,W,H);
+ // floor/grid plane
+ for(let i=-5;i<=5;i++){line3({x:i,y:0,z:-5},{x:i,y:0,z:5},'#1b2a3d',1);line3({x:-5,y:0,z:i},{x:5,y:0,z:i},'#1b2a3d',1);}
+ // axes
+ line3({x:-3.5,y:0,z:0},{x:3.5,y:0,z:0},'#38506b',1);line3({x:0,y:-3.5,z:0},{x:0,y:3.5,z:0},'#38506b',1);line3({x:0,y:0,z:-3.5},{x:0,y:0,z:3.5},'#38506b',1);
+ // circle
+ let prev=null;for(let i=0;i<=160;i++){const q=i/160*Math.PI*2,p={x:r*Math.cos(q),y:r*Math.sin(q),z:0};if(prev)line3(prev,p,'#41627f',2);prev=p;}
+ const radial={x:Math.cos(th),y:Math.sin(th),z:0},pos={x:r*radial.x,y:r*radial.y,z:0},tang={x:-Math.sin(th),y:Math.cos(th),z:0},centr={x:-radial.x,y:-radial.y,z:0};
+ line3({x:0,y:0,z:0},pos,'#58b7ff',2,[5,5]);dot3({x:0,y:0,z:0},'#fff',5);dot3(pos,'#58b7ff',9);
+ arrow3({x:0,y:0,z:0},{x:r*radial.x,y:r*radial.y,z:0},'#58b7ff','r');
+ const vLen=Math.max(.5,Math.min(2.3,v/2.2)),atLen=Math.max(.35,Math.min(2,Math.abs(r*a)/3)),acLen=Math.max(.6,Math.min(2.2,r*w*w/5));
+ arrow3(pos,{x:tang.x*vLen,y:tang.y*vLen,z:0},'#70e0a1','v');
+ arrow3(pos,{x:tang.x*Math.sign(a)*atLen,y:tang.y*Math.sign(a)*atLen,z:0},'#ffcb66','aₜ');
+ arrow3(pos,{x:centr.x*acLen,y:centr.y*acLen,z:0},'#ff7bb6','a꜀');
+ const av={x:tang.x*Math.sign(a)*atLen+centr.x*acLen,y:tang.y*Math.sign(a)*atLen+centr.y*acLen,z:0};arrow3(pos,av,'#d8a8ff','a');
+ if(el('showForce').checked){const ftLen=Math.max(.35,Math.min(2,Math.abs(ft)/5)),fcLen=Math.max(.6,Math.min(2.2,fc/10));arrow3(pos,{x:tang.x*Math.sign(a)*ftLen,y:tang.y*Math.sign(a)*ftLen,z:0},'#ffcb66','Fₜ');arrow3(pos,{x:centr.x*fcLen,y:centr.y*fcLen,z:0},'#ff7bb6','F꜀');arrow3(pos,{x:tang.x*Math.sign(a)*ftLen+centr.x*fcLen,y:tang.y*Math.sign(a)*ftLen+centr.y*fcLen,z:0},'#d8a8ff','F');}
+ // label
+ ctx.fillStyle='#b8c9dc';ctx.font='13px system-ui';ctx.fillText('ลากเพื่อหมุนมุมมอง 3D • เลื่อนเพื่อซูม',16,H-18);
+}
+let last=performance.now();function animate(now){const dt=Math.min(.05,(now-last)/1000);last=now;if(vals.play){vals.theta=(vals.theta+vals.omega*dt*180/Math.PI)%360;el('theta').value=vals.theta;}update();requestAnimationFrame(animate);}requestAnimationFrame(animate);
+</script>
+</body>
+</html>
